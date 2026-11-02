@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="talk" android:enabled="true" android:icon="@drawable/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_talk">
+        <intent android:action="com.caremate.assistant.TALK"
+            android:targetPackage="com.caremate.assistant"
+            android:targetClass="com.caremate.assistant.ui.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="sos" android:enabled="true" android:icon="@drawable/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_sos">
+        <intent android:action="com.caremate.assistant.SOS"
+            android:targetPackage="com.caremate.assistant"
+            android:targetClass="com.caremate.assistant.ui.MainActivity" />
+    </shortcut>
+</shortcuts>

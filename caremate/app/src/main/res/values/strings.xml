@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">CareMate</string>
+    <string name="accessibility_label">CareMate screen helper</string>
+    <string name="accessibility_description">Lets the CareMate assistant read the screen and tap, type and scroll in any app when you ask it to (for example, sending a WhatsApp message or playing a video). It only acts when you give it a request. Also adds an accessibility button that opens CareMate.</string>
+    <string name="tile_label">Talk to CareMate</string>
+    <string name="shortcut_talk">Talk</string>
+    <string name="shortcut_sos">SOS</string>
+</resources>
