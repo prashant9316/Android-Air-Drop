@@ -104,7 +104,10 @@ class ReminderReceiver : BroadcastReceiver() {
 }
 
 class BootReceiver : BroadcastReceiver() {
-    override fun onReceive(ctx: Context, intent: Intent) = Reminders.rescheduleAll(ctx)
+    override fun onReceive(ctx: Context, intent: Intent) {
+        Reminders.rescheduleAll(ctx)
+        com.caremate.assistant.wake.WakeWords.sync(ctx)
+    }
 }
 
 /** Short foreground service that reads a message aloud even if the app is closed. */

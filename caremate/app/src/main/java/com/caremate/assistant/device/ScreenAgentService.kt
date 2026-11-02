@@ -32,6 +32,8 @@ class ScreenAgentService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        // After a reboot this connects early; a good moment to resume wake-word listening.
+        runCatching { com.caremate.assistant.wake.WakeWords.sync(this) }
         if (Build.VERSION.SDK_INT >= 26) {
             accessibilityButtonController.registerAccessibilityButtonCallback(
                 object : AccessibilityButtonController.AccessibilityButtonCallback() {

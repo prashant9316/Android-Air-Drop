@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import com.caremate.assistant.AssistantEngine
 import com.caremate.assistant.CareMateApp
 import com.caremate.assistant.care.FindPhone
+import com.caremate.assistant.wake.WakeWords
 
 enum class Screen { HOME, SETUP, SETTINGS, MEMORY }
 
@@ -44,6 +45,18 @@ class MainActivity : ComponentActivity() {
         handle(intent)
     }
 
+    override fun onResume() {
+        super.onResume()
+        visible = true
+        getSystemService(android.app.NotificationManager::class.java).cancel(WakeWords.NOTIF_WAKE)
+        WakeWords.sync(this) // (re)start wake-word listening if it's switched on
+    }
+
+    override fun onPause() {
+        visible = false
+        super.onPause()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handle(intent)
@@ -61,6 +74,7 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
+        @Volatile var visible = false
         const val EXTRA_LISTEN = "listen"
         const val EXTRA_REMINDER = "reminder"
         const val ACTION_TALK = "com.caremate.assistant.TALK"

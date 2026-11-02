@@ -69,6 +69,7 @@ import com.caremate.assistant.CareMateApp
 import com.caremate.assistant.Prefs
 import com.caremate.assistant.memory.MemoryCategory
 import com.caremate.assistant.reminders.Reminders
+import com.caremate.assistant.wake.WakeWords
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -180,6 +181,7 @@ private fun Toggle(label: String, sub: String, value: Boolean, onChange: (Boolea
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
     val p = CareMateApp.instance.prefs
+    val ctx = LocalContext.current
     var apiKey by remember { mutableStateOf(p.apiKey) }
     var model by remember { mutableStateOf(p.model) }
     var effort by remember { mutableStateOf(p.effort) }
@@ -195,14 +197,37 @@ fun SettingsScreen(onBack: () -> Unit) {
     var careSms by remember { mutableStateOf(p.careSmsEnabled) }
     var caregivers by remember { mutableStateOf(p.caregiverNumbersRaw) }
     var pin by remember { mutableStateOf(p.carePin) }
+    var wakeOn by remember { mutableStateOf(p.wakeEnabled) }
+    var wakeWord by remember { mutableStateOf(p.wakeWord) }
+    var wakeThreshold by remember { mutableStateOf(p.wakeThreshold) }
+    var customLabel by remember { mutableStateOf(p.customWakeLabel) }
+    var wakeOptions by remember { mutableStateOf(WakeWords.options(ctx)) }
+    var importMsg by remember { mutableStateOf("") }
+    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        if (!ok) { wakeOn = false; importMsg = "Microphone permission is needed for the wake word." }
+    }
+    val importModel = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri != null) {
+            importMsg = runCatching {
+                val f = WakeWords.customFile(ctx); f.parentFile?.mkdirs()
+                ctx.contentResolver.openInputStream(uri)!!.use { input -> f.outputStream().use { input.copyTo(it) } }
+                WakeWords.loadDetector(ctx, WakeWords.CUSTOM).close() // check it's a valid model
+                wakeWord = WakeWords.CUSTOM
+                wakeOptions = WakeWords.options(ctx)
+                "Custom wake word imported."
+            }.getOrElse { WakeWords.customFile(ctx).delete(); wakeOptions = WakeWords.options(ctx); "That file isn't a valid openWakeWord model." }
+        }
+    }
 
     fun save() {
+        p.wakeEnabled = wakeOn; p.wakeWord = wakeWord; p.wakeThreshold = wakeThreshold; p.customWakeLabel = customLabel.trim()
         p.apiKey = apiKey; p.model = model; p.effort = effort; p.userName = userName.trim()
         p.assistantName = assistantName.trim().ifBlank { "CareMate" }; p.language = language.trim().ifBlank { Locale.getDefault().toLanguageTag() }
         p.speechRate = rate; p.largeText = large; p.confirmActions = confirm; p.keepListening = keep
         p.aboutUser = about.trim(); p.emergencyContactsRaw = contacts.trim()
         p.careSmsEnabled = careSms && pin.length >= 4; p.caregiverNumbersRaw = caregivers.trim(); p.carePin = pin.trim()
         AssistantEngine.newConversation()
+        WakeWords.sync(ctx)
     }
 
     Page("Settings", { save(); onBack() }) {
@@ -227,6 +252,26 @@ fun SettingsScreen(onBack: () -> Unit) {
             OutlinedTextField(about, { about = it }, Modifier.fillMaxWidth(), minLines = 3,
                 label = { Text("About the user (for the assistant)") },
                 placeholder = { Text("e.g. 72, lives alone in Pune, speaks Marathi and some English, hard of hearing, diabetic, likes old Lata songs") })
+
+            HorizontalDivider()
+            Text("Wake word", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Toggle("Listen for a wake word", "Say the phrase from anywhere, even with the screen off, to start talking. Detected on the phone; audio is not sent anywhere.", wakeOn) {
+                wakeOn = it
+                if (it && !Permissions.has(ctx, android.Manifest.permission.RECORD_AUDIO)) micPermission.launch(android.Manifest.permission.RECORD_AUDIO)
+            }
+            Choice("Wake phrase", wakeOptions.map { it.label }, wakeOptions.firstOrNull { it.id == wakeWord }?.label ?: wakeOptions.first().label) { l ->
+                wakeWord = wakeOptions.first { it.label == l }.id
+            }
+            // Slider shows sensitivity; stored as a detection threshold (inverse).
+            Text("Sensitivity: " + when { wakeThreshold <= 0.35f -> "high (may wake by mistake)"; wakeThreshold >= 0.65f -> "low (say it clearly)"; else -> "normal" })
+            Slider(1f - wakeThreshold, { wakeThreshold = (1f - it).coerceIn(0.2f, 0.85f) }, valueRange = 0.15f..0.8f)
+            Text("Uses a little extra battery. If \"Alexa\" is chosen, Amazon speakers nearby may answer too.",
+                style = MaterialTheme.typography.bodySmall)
+            OutlinedButton(onClick = { importModel.launch(arrayOf("*/*")) }, Modifier.fillMaxWidth()) { Text("Import custom wake phrase (.onnx)") }
+            if (WakeWords.customFile(ctx).exists() || wakeWord == WakeWords.CUSTOM)
+                OutlinedTextField(customLabel, { customLabel = it }, Modifier.fillMaxWidth(), singleLine = true,
+                    label = { Text("Custom phrase name (e.g. Hey CareMate)") })
+            if (importMsg.isNotBlank()) Text(importMsg, color = MaterialTheme.colorScheme.primary)
 
             HorizontalDivider()
             Text("Family & emergency contacts", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)

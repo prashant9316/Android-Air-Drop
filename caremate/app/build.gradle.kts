@@ -13,7 +13,7 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "0.2.0"
     }
 
     buildTypes {
@@ -22,6 +22,16 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // Personal sideloaded build: sign with the debug key so the APK installs directly.
             signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+    // One APK per phone CPU type, so each carries only the ONNX Runtime library it needs.
+    // Almost every phone from 2017 on wants the arm64-v8a APK; very old/budget ones armeabi-v7a.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a")
+            isUniversalApk = false
         }
     }
     compileOptions {
@@ -45,6 +55,8 @@ kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarg
 
 dependencies {
     implementation("com.anthropic:anthropic-java:3.3.0")
+    implementation(project(":wakeword"))
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.29.0")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     implementation(platform("androidx.compose:compose-bom:2025.10.01"))

@@ -22,8 +22,10 @@ organised long-term memory of the people, medicines, routines and preferences in
 | Remote check-in | You text her phone `CAREMATE <PIN> WHERE` and get a map link back. Also `STATUS`, `RING` (loud alarm to find the phone), `NOTE <text>` (adds to her assistant's memory), `REMIND 18:30 <text>`. Only your numbers + PIN work. |
 | Offline basics | With no internet: call people, time/date, battery, torch, open apps, SOS still work. |
 
-Ways to start talking: the big button in the app; **long-press home / swipe from a
-bottom corner** once CareMate is the default assistant (works on the lock screen too);
+Ways to start talking: **say the wake word** ("Hey Jarvis", "Alexa", "Hey Mycroft", or
+your own phrase), from anywhere, even with the screen off or locked; the big button in
+the app; **long-press home / swipe from a bottom corner** once CareMate is the default
+assistant (works on the lock screen too);
 the on-screen **accessibility button**; the **Quick Settings tile**; long-press the app
 icon for **Talk / SOS** shortcuts.
 
@@ -31,8 +33,10 @@ icon for **Talk / SOS** shortcuts.
 
 1. **Get the APK.** Either download it from this repo's GitHub Actions
    (Actions > *CareMate APK* > latest run > Artifacts > `CareMate-apk`), or build it:
-   `cd caremate && ./gradlew assembleRelease` →
-   `app/build/outputs/apk/release/app-release.apk`.
+   `cd caremate && ./gradlew assembleRelease` → `app/build/outputs/apk/release/`.
+   Use `app-arm64-v8a-release.apk` (almost every phone from 2017 on). Only very old or
+   budget phones need `app-armeabi-v7a-release.apk`; if the first one says "app not
+   compatible", use that one.
 2. Copy it to the phone and open it. Allow "install unknown apps" when asked.
 3. Get a Claude API key at [console.anthropic.com](https://console.anthropic.com)
    (Settings > API keys). Add some credit; see *Cost* below.
@@ -49,8 +53,38 @@ icon for **Talk / SOS** shortcuts.
    *Settings > Apps > CareMate > ⋮ (top right) > Allow restricted settings*, then try again.
    Do the same if "Notification access" is greyed out.
 6. Make it the **default assistant**: Settings > Apps > Default apps > Digital assistant app > CareMate.
-7. Add a few memories to start (Memory screen > *What I know*): medicines and timings,
+7. Turn on the **wake word**: Settings > Wake word > *Listen for a wake word*, pick the
+   phrase, and set the sensitivity. Say it from across the room to test; if it misses
+   her voice, raise the sensitivity. If it wakes up by itself, lower it.
+8. Add a few memories to start (Memory screen > *What I know*): medicines and timings,
    doctor, key people, home address.
+
+## Wake word
+
+Wake-word detection runs **entirely on the phone** with
+[openWakeWord](https://github.com/dscripka/openWakeWord) models on ONNX Runtime. A
+small foreground service (shown as a "Say Hey Jarvis to talk" notification) listens in
+80 ms chunks; no audio is stored or sent anywhere until the phrase is heard. Then
+it beeps, buzzes, wakes the screen, and CareMate starts listening normally. It
+lets go of the microphone during phone calls and while CareMate itself is listening or
+speaking.
+
+- **Phrases included:** "Hey Jarvis" (the default), "Alexa" (Amazon speakers nearby may
+  answer too), "Hey Mycroft". These models are English-trained but work for most accents.
+- **Your own phrase** (e.g. "Hey CareMate", or a name Mum likes): train one for free with
+  openWakeWord's [automatic training notebook](https://github.com/dscripka/openWakeWord#training-new-models)
+  in Google Colab (about an hour, no audio recording needed), copy the resulting
+  `.onnx` file to the phone, then Settings > Wake word > *Import custom wake phrase*.
+- **Battery:** listening all the time costs some battery (how much depends on the phone;
+  check Settings > Battery after a day). Switch it off from the notification's *Turn off* button.
+- **After a restart** on Android 14+, Android won't let an app open the microphone until
+  it's been opened once; CareMate shows a "Tap to switch on" notification.
+- The included models are licensed CC BY-NC-SA 4.0 (non-commercial), which is fine for
+  personal use.
+
+The detector is a line-for-line port of the reference Python pipeline. Its tests check
+it against the reference scores, chunk by chunk, and against real speech for each
+phrase (`./gradlew :wakeword:test`).
 
 ## Cost
 
@@ -72,8 +106,9 @@ SOS and caregiver SMS, so you can check in on how she's using it.
 
 ## Limits worth knowing
 
-- **No always-listening "Hey…" wake word.** Android only gives hotword access to
-  system apps like Google's. Use long-press home, the accessibility button, or the tile.
+- The wake word uses its own detector, because Android reserves its built-in low-power
+  hotword hardware for preinstalled apps like Google's. That's why it uses a bit more
+  battery than "Hey Google".
 - Screen control is as good as what apps expose to accessibility. WhatsApp, YouTube and
   Settings work well; some games and banking apps hide their screens (on purpose).
 - Banking/UPI apps: by design CareMate will not make payments.
@@ -99,7 +134,10 @@ caremate/app/src/main/java/com/caremate/assistant/
 ├─ reminders/              exact alarms + spoken reminders + reboot rescheduling
 ├─ care/Care.kt            SOS, find-my-phone, caregiver SMS commands
 ├─ voice/                  speech in/out, default-assistant services
+├─ wake/WakeWordService.kt always-on microphone service for the wake word
 └─ ui/                     Compose screens: home, setup checklist, settings, memory
+
+caremate/wakeword/          on-device wake-word detector (pure Kotlin + ONNX Runtime)
 ```
 
-Run the tests with `./gradlew testDebugUnitTest`.
+Run the tests with `./gradlew testDebugUnitTest :wakeword:test`.

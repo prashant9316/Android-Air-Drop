@@ -51,6 +51,15 @@ class Prefs(context: Context) {
 
     var onboarded: Boolean by bool("onboarded", false)
 
+    // Wake word ("Hey Jarvis" etc.), detected fully on the phone.
+    var wakeEnabled: Boolean by bool("wake_enabled", false)
+    var wakeWord: String by str("wake_word", "hey_jarvis")
+    var customWakeLabel: String by str("custom_wake_label", "")
+    /** Detection threshold 0..1; lower = more sensitive (more false wakes). */
+    var wakeThreshold: Float
+        get() = sp.getFloat("wake_threshold", 0.5f)
+        set(v) = sp.edit().putFloat("wake_threshold", v).apply()
+
     private fun str(key: String, def: String) = object : kotlin.properties.ReadWriteProperty<Any?, String> {
         override fun getValue(thisRef: Any?, property: kotlin.reflect.KProperty<*>) = sp.getString(key, def) ?: def
         override fun setValue(thisRef: Any?, property: kotlin.reflect.KProperty<*>, value: String) =

@@ -15,4 +15,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "CareMate"
-include(":app")
+include(":app", ":wakeword")
